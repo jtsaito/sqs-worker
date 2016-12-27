@@ -102,3 +102,16 @@ func (worker *Worker) deleteMessage(receiptHandle string) {
 
 	worker.Println(resp)
 }
+
+// SendMessage sends a message.
+func (worker *Worker) SendMessage(payload string) error {
+	params := &sqs.SendMessageInput{
+		QueueUrl:     aws.String(worker.url),
+		DelaySeconds: aws.Int64(1),
+		MessageBody:  aws.String(payload),
+	}
+
+	_, err := worker.sqsClient.SendMessage(params)
+
+	return err
+}
