@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
-/*Worker is a simple worker for SQS written in Go. The worker periodically polls SQS for jobs making this solution easily
+/* Worker is a simple worker for SQS written in Go. The worker periodically polls SQS for jobs making this solution easily
 scalable. The worker is meant for use in an AWS EC2 autoscaling group. Alternatively, I can be scaled by AWS
 Elastic Beanstalk in the "web service" tier, but not in the worker tier. */
 type Worker struct {
@@ -19,10 +19,10 @@ type Worker struct {
 	handler          func(string)
 	sqsClient        *sqs.SQS
 	pollingIntervall time.Duration
-	Logger           *log.Logger
+	*log.Logger      // embed logger
 }
 
-/*New is a constructor */
+/* New is a constructor */
 func New(url, region string, handler func(string), pollingIntervall time.Duration) (worker *Worker) {
 	logger := log.New(os.Stderr, "[SQS Worker] ", log.Lshortfile)
 
@@ -34,16 +34,10 @@ func New(url, region string, handler func(string), pollingIntervall time.Duratio
 
 	cli := sqs.New(sess)
 
-	return &Worker{
-		handler:          handler,
-		Logger:           logger,
-		pollingIntervall: pollingIntervall,
-		region:           region,
-		sqsClient:        cli,
-		url:              url}
+	return &Worker{url, region, handler, cli, pollingIntervall, logger}
 }
 
-/*StartPolling starts polling SQS. When a message is found, it is passed to the handler. */
+/* StartPolling starts polling SQS. When a message is found, it is passed to the handler. */
 func (worker *Worker) StartPolling() {
 	for {
 		<-time.After(worker.pollingIntervall)
@@ -54,7 +48,7 @@ func (worker *Worker) StartPolling() {
 func (worker *Worker) handleMessage() {
 	receiptHandle, payload := worker.readFromQueue()
 
-	worker.Logger.Println("message received: ", payload)
+	worker.Println("message received: ", payload)
 
 	if receiptHandle != "" {
 		worker.handler(payload)
@@ -78,8 +72,8 @@ func (worker *Worker) readFromQueue() (receiptHandle, payload string) {
 	resp, err := worker.sqsClient.ReceiveMessage(params)
 
 	if err != nil {
-		worker.Logger.Println("reading")
-		worker.Logger.Println(err.Error())
+		worker.Println("reading")
+		worker.Println(err.Error())
 		return receiptHandle, ""
 	}
 
@@ -101,10 +95,10 @@ func (worker *Worker) deleteMessage(receiptHandle string) {
 	resp, err := worker.sqsClient.DeleteMessage(params)
 
 	if err != nil {
-		worker.Logger.Println("deleting")
-		worker.Logger.Println(err.Error())
+		worker.Println("deleting")
+		worker.Println(err.Error())
 		return
 	}
 
-	worker.Logger.Println(resp)
+	worker.Println(resp)
 }
